@@ -23,4 +23,4 @@ Los estudiantes y colaboradores están invitados a sugerir mejoras a los recurso
 ---
 
 **Nota**: Este repositorio y los recursos en él están sujetos a cambios a lo largo del curso. Revisa periódicamente para asegurarte de tener la versión más actualizada de los materiales.
-versión 1.0 (2025-I-21).
+versión 1.1 (2025-II-2).
