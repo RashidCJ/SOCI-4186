@@ -5,14 +5,14 @@
 # Tarea 4: Cargar y modificar datos     #
 
 #En esta tarea harán lo siguiente
-# 1. Guardar esta tarea, cambiando el nombre de Tarea3-4186.R
-# a Apellido1-Apellido2-Tarea3-{1 o 2}.R 
+# 1. Guardar esta tarea, cambiando el nombre de Tarea4-4186.R
+# a Apellido1-Apellido2-Tarea4-{1 o 2}.R 
 # 2. Completar las próximas secciones, guardando la secuencia
 # de comandos que usaron para cumplir con lo pedido. A modo de ejemplo
 # dejo una parte ya hecha. Continúen desde ahí.
 
 #Sección 0: Cargar librerías -----------
-# Deben cargar las librerías adecuada para toda la tarea aquí. 
+# Deben cargar las librerías adecuadas para toda la tarea aquí. 
 # A modo de ejemplo cargaré la de dslabs. Carguen tidyverse.
 library(dslabs)
 library()
@@ -21,7 +21,7 @@ library()
 
 # Sección 1: Modificando datos con mutate -----------
 ## Carguen los datos de heights y murders, y modifíquenlos 
-## añadiendo al menosuna nueva variable c/u.
+## añadiendo al menos una nueva variable c/u.
 ## En el caso de heights, añadan una variable que sea la altura en metros.
 
 data()
