@@ -11,7 +11,7 @@ library(googlesheets4) # Para trabajar con Google Sheets
 #datos <- read_excel("Encuesta economía Río Piedras (respuestas).xlsx")
 #datos <- read_excel("Encuesta Río Piedras SOCI 4186.xlsx")
 
-url_hoja <- "https://docs.google.com/spreadsheets/d/1LyBdyW-TTw-Gu6R5hJTcaTJdzuRc66KmjlgAqHw8ieQ/edit?resourcekey=&gid=1916206010#gid=1916206010"
+#url_hoja <- "https://docs.google.com/spreadsheets/d/1LyBdyW-TTw-Gu6R5hJTcaTJdzuRc66KmjlgAqHw8ieQ/edit?resourcekey=&gid=1916206010#gid=1916206010"
 datos <- read_sheet(url_hoja) 
 
 
