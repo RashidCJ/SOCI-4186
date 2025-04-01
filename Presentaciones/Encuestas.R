@@ -9,9 +9,9 @@ library(googlesheets4) # Para trabajar con Google Sheets
 # 1. Importar los datos
 # Reemplaza 'Encuesta economía Río Piedras (respuestas).xlsx' con la ruta correcta a tu archivo de datos
 #datos <- read_excel("Encuesta economía Río Piedras (respuestas).xlsx")
-#datos <- read_excel("Encuesta Río Piedras SOCI 4186.xlsx")
+#datos <- read_excel("Encuesta Río Piedras SOCI 4186.xlsx")
 
-#url_hoja <- "https://docs.google.com/spreadsheets/d/1LyBdyW-TTw-Gu6R5hJTcaTJdzuRc66KmjlgAqHw8ieQ/edit?resourcekey=&gid=1916206010#gid=1916206010"
+url_hoja <- "https://docs.google.com/spreadsheets/d/1LyBdyW-TTw-Gu6R5hJTcaTJdzuRc66KmjlgAqHw8ieQ/edit?resourcekey=&gid=1916206010#gid=1916206010"
 datos <- read_sheet(url_hoja) 
 
 
@@ -50,7 +50,7 @@ datos <- datos |>
   )
 datos <- datos |>
   mutate(id_respuesta = row_number())
-
+datos
 #Eliminar fila si en Hoja de Consentimiento dijeron 'Declino'
 #datos <- subset(datos, `Hoja de Consentimiento` != 'Declino')
 
@@ -68,16 +68,20 @@ datos <- datos |>
                  oferta_gastronomica, establecimientos, jangueo_actividades,
                  vida_nocturna, vista_general, comparacion_anual, 
                  redujo_gastos, responsabilidad,negocios_jangueo), as.factor)
+datos|>select(establecimientos,negocios_jangueo)
 
+
+#quitar acentos en establecimientos y negocios_jangueo para simplificar análisis
+library(scraEP)
+datos$establecimientos <- unaccent(datos$establecimientos)
+datos$negocios_jangueo <- unaccent(datos$negocios_jangueo)
 datos <- datos |>
   mutate(across(
     c(establecimientos, negocios_jangueo),
     ~ as.factor(trimws(tolower(.)))
   ))
-
-
-datos$establecimientos <- tolower(trimws(datos$establecimientos))
-datos$negocios_jangueo <- tolower(trimws(datos$negocios_jangueo))
+#datos$establecimientos <- tolower(trimws(datos$establecimientos))
+#datos$negocios_jangueo <- tolower(trimws(datos$negocios_jangueo))
 summary(datos$negocios_jangueo)
 # Ver datos con nombres normalizados
 print(datos)
@@ -91,19 +95,39 @@ datos_ocupacion <- datos |>
 datos_responsabilidad <- datos |>
   separate_rows(responsabilidad, sep = ",\\s*")
 
-datos_establecimientos <- datos |>
-  separate_rows(establecimientos, sep = ",\\s*")
-
-datos_jangueo_neg <- datos |>
-  separate_rows(negocios_jangueo, sep = ",\\s*")
 datos_jangueo_neg <- datos |>
   mutate(
     negocios_jangueo = str_replace_all(negocios_jangueo, "[,\n\t\\u00A0]+", ","),
     negocios_jangueo = str_replace_all(negocios_jangueo, ",+", ","),
     negocios_jangueo = str_replace_all(negocios_jangueo, ",\\s*", ", "),
-    negocios_jangueo = str_squish(negocios_jangueo)
+    negocios_jangueo = str_replace_all(negocios_jangueo, "cafe boriken,", "cafe boriken"),
+    negocios_jangueo = str_replace_all(negocios_jangueo, " y ", ", "),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "scryer/el lab", "scryer, el lab"),
+    negocios_jangueo = str_squish(negocios_jangueo),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "el 8", "el ocho"),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "el ocho de rio", "el ocho"),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "el vidy s", "el vidy's"),
+    negocios_jangueo = trimws(negocios_jangueo),
   ) |>
   separate_rows(negocios_jangueo, sep = ", ")
+View(datos_jangueo_neg)
+
+datos_establecimientos <- datos |>
+  mutate(
+    establecimientos = str_replace_all(establecimientos, "[,\n\t\\u00A0]+", ","),
+    establecimientos = str_replace_all(establecimientos, ",+", ","),
+    establecimientos = str_replace_all(establecimientos, ",\\s*", ", "),
+    establecimientos = str_squish(establecimientos),
+    establecimientos = trimws(establecimientos),
+    establecimientos = str_replace_all(establecimientos, "el 8", "el ocho"),
+    establecimientos = str_replace_all(establecimientos, "el ocho de rio", "el ocho"),
+    establecimientos = str_replace_all(establecimientos, "el vidy s", "el vidy's"),
+    establecimientos = str_replace_all(establecimientos, "scryer/el lab", "scryer, el lab"),
+    establecimientos = str_replace_all(establecimientos, "boriken", "cafe boriken"),
+    establecimientos = str_replace_all(establecimientos, "cafe boriken,", "cafe boriken"),
+    establecimientos = str_replace_all(establecimientos, " y ", ", "),
+  ) |>
+  separate_rows(establecimientos, sep = ",\\s*")
 
 # Crear variables binarias para cada ocupación
 datos_ocupacion_bin <- datos_ocupacion |>
@@ -111,7 +135,7 @@ datos_ocupacion_bin <- datos_ocupacion |>
   mutate(valor = 1) |>
   pivot_wider(names_from = ocupacion, values_from = valor, values_fill = list(valor = 0))
 names(datos_ocupacion_bin)
-#datos_ocupacion |>
+ #datos_ocupacion |>
 #  mutate(valor = 1) |>
 #  pivot_wider(names_from = ocupacion, values_from = valor, values_fill = list(valor = 0)) |>
 #  select(sexo,edad,)
@@ -177,12 +201,12 @@ datos |>
   separate_rows(negocios_jangueo, sep = ",\\s*") |>
   mutate(negocios_jangueo = tolower(negocios_jangueo)) |>
   count(negocios_jangueo) |>
-  filter(str_detect(negocios_jangueo, "refugio"))
+  filter(str_detect(negocios_jangueo, "rancho"))
 
 datos |>
   select(id_respuesta,negocios_jangueo,matches("\\.x$|\\.y$"))
-datos|>
-  select(id_respuesta,negocios_jangueo,`el refugio`,matches("\\.x$|\\.y$")) 
+#datos|>
+#  select(id_respuesta,negocios_jangueo,`el refugio`,matches("\\.x$|\\.y$")) 
 
 datos <- datos |>
   select(-matches("\\.y$"), -any_of("NA")) |>
@@ -246,8 +270,9 @@ ggplot(datos, aes(x = edad, fill = atractivo_compras)) +
   theme_minimal()
 
 # 12. Pruebas de Ji cuadrado para analizar relaciones entre variables
-
+?chisq.test
 # Prueba entre 'sexo' y 'redujo_gastos'
+tabla_sexo_gastos
 chi_sexo_gastos <- chisq.test(tabla_sexo_gastos)
 print(chi_sexo_gastos)
 
@@ -288,6 +313,7 @@ if("Estudiante universitario" %in% names(datos)) {
 
 # 13. Usar stargazer para generar tablas para LaTeX
 summary(datos)
+
 # Generar una tabla resumen de estadísticas descriptivas
 stargazer(datos, type = "text", summary = TRUE)
 
