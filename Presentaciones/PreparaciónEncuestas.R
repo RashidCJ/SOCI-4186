@@ -12,8 +12,9 @@ library(googlesheets4) # Para trabajar con Google Sheets
 #datos <- read_excel("Encuesta Río Piedras SOCI 4186.xlsx")
 
 #url_hoja <- "https://docs.google.com/spreadsheets/d/1LyBdyW-TTw-Gu6R5hJTcaTJdzuRc66KmjlgAqHw8ieQ/edit?resourcekey=&gid=1916206010#gid=1916206010"
-datos <- read_sheet(url_hoja) 
+#datos <- read_sheet(url_hoja) 
 
+datos<-read_csv(dir/subdir/localización_de_hoja.csv)
 
 summary(datos)
 
@@ -52,7 +53,7 @@ datos <- datos |>
   mutate(id_respuesta = row_number())
 datos
 #Eliminar fila si en Hoja de Consentimiento dijeron 'Declino'
-#datos <- subset(datos, `Hoja de Consentimiento` != 'Declino')
+datos <- subset(datos, consentimiento != 'Declino')
 
 # 2. Eliminar columnas innecesarias
 # Eliminamos 'Hoja de Consentimiento', 'Puntuación' y 'Marca temporal'
@@ -97,37 +98,64 @@ datos_responsabilidad <- datos |>
 
 datos_jangueo_neg <- datos |>
   mutate(
+    negocios_jangueo = tolower(negocios_jangueo),
+    negocios_jangueo = stringi::stri_trans_general(negocios_jangueo, "Latin-ASCII"),
     negocios_jangueo = str_replace_all(negocios_jangueo, "[,\n\t\\u00A0]+", ","),
     negocios_jangueo = str_replace_all(negocios_jangueo, ",+", ","),
     negocios_jangueo = str_replace_all(negocios_jangueo, ",\\s*", ", "),
     negocios_jangueo = str_replace_all(negocios_jangueo, "cafe boriken,", "cafe boriken"),
     negocios_jangueo = str_replace_all(negocios_jangueo, " y ", ", "),
     negocios_jangueo = str_replace_all(negocios_jangueo, "scryer/el lab", "scryer, el lab"),
-    negocios_jangueo = str_squish(negocios_jangueo),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "mr mac", "mr. mac"),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "\\bboriken\\b", "cafe boriken"),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "cafe boriken plaza del mercado", "cafe boriken, plaza del mercado"),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "scyther", "scryer"),
     negocios_jangueo = str_replace_all(negocios_jangueo, "el 8", "el ocho"),
     negocios_jangueo = str_replace_all(negocios_jangueo, "el ocho de rio", "el ocho"),
     negocios_jangueo = str_replace_all(negocios_jangueo, "el vidy s", "el vidy's"),
+    negocios_jangueo = str_replace_all(negocios_jangueo, "dipea/la lata", "dipea"),
+    negocios_jangueo = str_squish(negocios_jangueo),
     negocios_jangueo = trimws(negocios_jangueo),
+    negocios_jangueo = ifelse(negocios_jangueo == "n/a", NA, negocios_jangueo)
   ) |>
-  separate_rows(negocios_jangueo, sep = ", ")
-View(datos_jangueo_neg)
+  separate_rows(negocios_jangueo, sep = ", ") |>
+  mutate(
+    negocios_jangueo = str_replace_all(negocios_jangueo, "cafe cafe boriken", "cafe boriken"),
+  )
+
+#View(datos_jangueo_neg)
 
 datos_establecimientos <- datos |>
   mutate(
     establecimientos = str_replace_all(establecimientos, "[,\n\t\\u00A0]+", ","),
     establecimientos = str_replace_all(establecimientos, ",+", ","),
     establecimientos = str_replace_all(establecimientos, ",\\s*", ", "),
-    establecimientos = str_squish(establecimientos),
-    establecimientos = trimws(establecimientos),
     establecimientos = str_replace_all(establecimientos, "el 8", "el ocho"),
     establecimientos = str_replace_all(establecimientos, "el ocho de rio", "el ocho"),
     establecimientos = str_replace_all(establecimientos, "el vidy s", "el vidy's"),
     establecimientos = str_replace_all(establecimientos, "scryer/el lab", "scryer, el lab"),
-    establecimientos = str_replace_all(establecimientos, "boriken", "cafe boriken"),
+    establecimientos = str_replace_all(establecimientos, "mr mac", "mr. mac"),
+#    establecimientos = str_replace_all(establecimientos, "boriken", "cafe boriken"),
+    establecimientos = str_replace_all(establecimientos, "rancho mexicano en plaza uni", "rancho mexicano"),
+    establecimientos = str_replace_all(establecimientos, "cafe boriken plaza del mercado", "cafe boriken, plaza del mercado"),
+    establecimientos = str_replace_all(establecimientos, "dipea/la lata", "dipea"),
+    establecimientos = str_replace_all(establecimientos, "scryer/el lab", "scryer, el lab"),
     establecimientos = str_replace_all(establecimientos, "cafe boriken,", "cafe boriken"),
     establecimientos = str_replace_all(establecimientos, " y ", ", "),
+    establecimientos = str_squish(establecimientos),
+    establecimientos = trimws(establecimientos),
   ) |>
-  separate_rows(establecimientos, sep = ",\\s*")
+  separate_rows(establecimientos, sep = ",\\s*") |>
+  mutate(establecimientos = str_replace_all(establecimientos, "cafe boriken plaza del mercado", "cafe boriken, plaza del mercado"),)|>  separate_rows(establecimientos, sep = ",\\s*")
+
+
+
+tibble(
+  nombre = c(datos_jangueo_neg$negocios_jangueo, datos_establecimientos$establecimientos)
+) |>
+  filter(!is.na(nombre), nombre != "") |>
+  count(nombre, sort = FALSE) |>
+  arrange(nombre) |> print(n=27)
 
 # Crear variables binarias para cada ocupación
 datos_ocupacion_bin <- datos_ocupacion |>
@@ -135,6 +163,7 @@ datos_ocupacion_bin <- datos_ocupacion |>
   mutate(valor = 1) |>
   pivot_wider(names_from = ocupacion, values_from = valor, values_fill = list(valor = 0))
 names(datos_ocupacion_bin)
+datos_ocupacion_bin
  #datos_ocupacion |>
 #  mutate(valor = 1) |>
 #  pivot_wider(names_from = ocupacion, values_from = valor, values_fill = list(valor = 0)) |>
@@ -158,7 +187,7 @@ datos_jangueo_neg |>
   mutate(valor = 1)|>
   pivot_wider(names_from = negocios_jangueo, values_from = valor, values_fill = list(valor = 0)) 
 
-datos_jangueo_neg_bin <- datos |>
+datos_jangueo_neg_bin <- datos_jangueo_neg |>
   select(id_respuesta, negocios_jangueo) |>
   mutate(
     negocios_jangueo = tolower(negocios_jangueo),
@@ -167,7 +196,7 @@ datos_jangueo_neg_bin <- datos |>
     negocios_jangueo = str_replace_all(negocios_jangueo, ",\\s*", ", "),
     negocios_jangueo = str_squish(negocios_jangueo),
     negocios_jangueo = str_trim(negocios_jangueo),
-    negocios_jangueo = ifelse(is.na(negocios_jangueo) | negocios_jangueo == "", "Sin nombre", negocios_jangueo)
+    negocios_jangueo = ifelse(is.na(negocios_jangueo) | negocios_jangueo == "", "n/a", negocios_jangueo)
   ) |>
   separate_rows(negocios_jangueo, sep = ", ") |>  # ¡Aquí se expande!
   mutate(valor = 1) |>
@@ -201,7 +230,7 @@ datos |>
   separate_rows(negocios_jangueo, sep = ",\\s*") |>
   mutate(negocios_jangueo = tolower(negocios_jangueo)) |>
   count(negocios_jangueo) |>
-  filter(str_detect(negocios_jangueo, "rancho"))
+  filter(str_detect(negocios_jangueo, "boriken"))
 
 datos |>
   select(id_respuesta,negocios_jangueo,matches("\\.x$|\\.y$"))
@@ -215,147 +244,8 @@ datos <- datos |>
 # 8. Análisis exploratorio inicial
 # Resumen estadístico
 summary(datos)
+View(datos)
 
-# Tablas de frecuencia para variables categóricas
-table(datos$sexo)
-table(datos$region)
-table(datos$edad)
-
-# 9. Visualización de datos
-# Gráfico de barras de sexo
-ggplot(datos, aes(x = sexo)) +
-  geom_bar(fill = "skyblue") +
-  theme_minimal() +
-  labs(title = "Distribución por Sexo", x = "Sexo", y = "Cantidad")
-
-# 10. Guardar el conjunto de datos limpio
+# 9. Guardar el conjunto de datos limpio
 write_csv(datos, "encuesta_limpia.csv")
 
-# 11. Tablas de frecuencias y porcentajes de las relaciones entre nuestros datos
-
-# Relación entre 'sexo' y 'redujo_gastos'
-tabla_sexo_gastos <- table(datos$sexo, datos$redujo_gastos)
-print(tabla_sexo_gastos)
-
-# Calcular porcentajes por fila
-porcentaje_sexo_gastos <- prop.table(tabla_sexo_gastos, margin = 1) * 100
-print(round(porcentaje_sexo_gastos, 2))
-
-# Gráfico de barras apiladas para visualizar la relación
-ggplot(datos, aes(x = sexo, fill = redujo_gastos)) +
-  geom_bar(position = "fill") +
-  scale_y_continuous(labels = scales::percent_format()) +
-  labs(title = "Relación entre Sexo y Reducción de Gastos",
-       x = "Sexo",
-       y = "Porcentaje",
-       fill = "¿Redujo Gastos?") +
-  theme_minimal()
-
-# Relación entre 'edad' y 'atractivo_compras'
-tabla_edad_atractivo <- table(datos$edad, datos$atractivo_compras)
-print(tabla_edad_atractivo)
-
-# Porcentajes por fila
-porcentaje_edad_atractivo <- prop.table(tabla_edad_atractivo, margin = 1) * 100
-print(round(porcentaje_edad_atractivo, 2))
-
-# Gráfico de barras apiladas
-ggplot(datos, aes(x = edad, fill = atractivo_compras)) +
-  geom_bar(position = "fill") +
-  scale_y_continuous(labels = scales::percent_format()) +
-  labs(title = "Relación entre Edad y atractivo de Río Piedras para ir de compras",
-       x = "Grupo de Edad",
-       y = "Porcentaje",
-       fill = "Atractividad para compras") +
-  theme_minimal()
-
-# 12. Pruebas de Ji cuadrado para analizar relaciones entre variables
-?chisq.test
-# Prueba entre 'sexo' y 'redujo_gastos'
-tabla_sexo_gastos
-chi_sexo_gastos <- chisq.test(tabla_sexo_gastos)
-print(chi_sexo_gastos)
-
-# Verificar si se cumplen las condiciones para la prueba de Ji cuadrado
-if(any(chi_sexo_gastos$expected < 5)) {
-  # Si alguna frecuencia esperada es menor que 5, usar la prueba exacta de Fisher
-  fisher_sexo_gastos <- fisher.test(tabla_sexo_gastos)
-  print(fisher_sexo_gastos)
-}
-
-# Prueba entre 'edad' y 'atractivo_compras'
-chi_edad_atractivo <- chisq.test(tabla_edad_atractivo)
-print(chi_edad_atractivo)
-
-if(any(chi_edad_atractivo$expected < 5)) {
-  fisher_edad_atractivo <- fisher.test(tabla_edad_atractivo)
-  print(fisher_edad_atractivo)
-}
-
-# Prueba entre dummies creadas y respuestas
-# Por ejemplo, 'Estudiante universitario' y 'redujo_gastos'
-
-# Asegurarse de que la variable dummy exista y esté en formato factor
-if("Estudiante universitario" %in% names(datos)) {
-  datos$`Estudiante universitario` <- as.factor(datos$`Estudiante universitario`)
-  
-  tabla_estudiante_gastos <- table(datos$`Estudiante universitario`, datos$redujo_gastos)
-  print(tabla_estudiante_gastos)
-  
-  chi_estudiante_gastos <- chisq.test(tabla_estudiante_gastos)
-  print(chi_estudiante_gastos)
-  
-  if(any(chi_estudiante_gastos$expected < 5)) {
-    fisher_estudiante_gastos <- fisher.test(tabla_estudiante_gastos)
-    print(fisher_estudiante_gastos)
-  }
-}
-
-# 13. Usar stargazer para generar tablas para LaTeX
-summary(datos)
-
-# Generar una tabla resumen de estadísticas descriptivas
-stargazer(datos, type = "text", summary = TRUE)
-
-# Generar tablas de contingencia en formato LaTeX
-# Convertir tablas a data frames para stargazer
-df_tabla_sexo_gastos <- as.data.frame.matrix(tabla_sexo_gastos)
-df_tabla_edad_atractivo <- as.data.frame.matrix(tabla_edad_atractivo)
-
-# Tabla de 'sexo' y 'redujo_gastos'
-stargazer(df_tabla_sexo_gastos, type = "latex", summary = FALSE,
-          title = "Tabla de Contingencia: Sexo vs Reducción de Gastos",
-          label = "tab:sexo_gastos")
-
-# Tabla de 'edad' y 'atractivo_compras'
-stargazer(df_tabla_edad_atractivo, type = "latex", summary = FALSE,
-          title = "Tabla de Contingencia: Edad vs Atractivo para Compras",
-          label = "tab:edad_atractivo")
-
-# Generar resultados de pruebas de Ji cuadrado en formato LaTeX
-# Crear un data frame con los resultados
-resultados_chi <- data.frame(
-  Prueba = c("Sexo vs Reducción de Gastos", "Edad vs Atractivo para Compras"),
-  Estadístico = c(chi_sexo_gastos$statistic, chi_edad_atractivo$statistic),
-  Grados_de_Libertad = c(chi_sexo_gastos$parameter, chi_edad_atractivo$parameter),
-  Valor_p = c(chi_sexo_gastos$p.value, chi_edad_atractivo$p.value)
-)
-
-# Generar tabla con stargazer
-stargazer(resultados_chi, type = "latex", summary = FALSE,
-          title = "Resultados de Pruebas de Ji Cuadrado",
-          label = "tab:resultados_chi",
-          digits = 4)
-
-# Guardar tablas en archivos .tex si es necesario
-# Por ejemplo:
-stargazer(df_tabla_sexo_gastos, type = "latex", summary = FALSE,
-          title = "Tabla de Contingencia: Sexo vs Reducción de Gastos",
-          label = "tab:sexo_gastos",
-          out = "tabla_sexo_gastos.tex")
-
-# Puedes hacer lo mismo para otras tablas y resultados.
-
-
-install.packages("googlesheets4")
-library(googlesheets4)
