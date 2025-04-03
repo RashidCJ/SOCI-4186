@@ -6,6 +6,23 @@ table(datos$region)
 table(datos$edad)
 head(datos)
 names(datos)
+#0. cambios al código para asegurar categóricos se asignan adecuadamente
+datos <- datos |> 
+  mutate(
+    across(c(consentimiento, sexo, edad, 
+             region, ocupacion, ingreso_anual,
+             tipo_escuela, atractivo_compras,
+             paseo_de_diego, plaza_mercado, atractivo_jangueo,
+             jangueo_actividades, negocios_jangueo, limpieza,
+             ornato, seguridad, opciones_compra, oferta_gastronomica,
+             vida_nocturna, vista_general, comparacion_anual,
+             redujo_gastos), as.factor))
+
+datos <- datos |> 
+  mutate(ingreso_anual = factor(ingreso_anual, 
+                                levels = c("$0-$9,999", "$10,000-$14,999", "$15,000-$19,999", 
+                                           "$20,000-$39,999", "$40,000-$49,999", "$50,000-$59,999", "$60,000+"),
+                                ordered = TRUE))
 # 1. Visualización de datos
 # Gráfico de barras de sexo
 ggplot(datos, aes(x = sexo)) +
@@ -123,6 +140,7 @@ tabla_calificaRP_negocio
 ji_calificaRP_negocio <- chisq.test(tabla_calificaRP_negocio)
 ji_calificaRP_negocio
 
+chisq.test(datos$tipo_escuela, datos$`el boricua`)
 # Prueba entre dummies creadas y respuestas
 # Por ejemplo, 'Estudiante universitario' y 'redujo_gastos'
 
@@ -152,6 +170,7 @@ library(skimr)
 skim(datos)
 #alternativaB
 library(summarytools)
+dfSummary(datos)
 view(dfSummary(datos))
 # Generar tablas de contingencia en formato LaTeX
 # Convertir tablas a data frames para stargazer
@@ -192,11 +211,44 @@ stargazer(df_tabla_sexo_gastos, type = "latex", summary = FALSE,
 
 # Puedes hacer lo mismo para otras tablas y resultados.
 
-objetoreg<-glm(`el boricua` ~ seguridad + tipo_escuela + ingreso_anual, 
+summary(datos$ingreso_anual)
+datos <- datos |> 
+  mutate(
+    ingreso_categoria = factor(
+      case_when(
+        ingreso_anual %in% c("$0-$9,999", "$10,000-$14,999", "$15,000-$19,999") ~ "Bajo",
+        ingreso_anual %in% c("$20,000-$39,999", "$40,000-$49,999") ~ "Mediano",
+        ingreso_anual %in% c("$50,000-$59,999", "$60,000+") ~ "Alto"
+      ),
+      levels = c("Bajo", "Mediano", "Alto"),
+      ordered = F
+    ))
+
+objetoreg<-glm(`el boricua` ~ seguridad + tipo_escuela + ingreso_categoria, 
     data = datos, family = "binomial")
-car::vif(objetoreg)
+car::vif(objetoreg) #esta función busca identificar si 
 summary(objetoreg)
-lm(vista_general ~ limpieza + ornato + seguridad + plaza_mercado + ingreso_anual, 
-   data = datos)
-glm(redujo_gastos ~ ingreso_anual + sexo + edad + plaza_mercado + opciones_compra, 
-    data = datos, family = "binomial")
+datos$ingreso_categoria <- factor(as.character(datos$ingreso_categoria),
+                                  levels = c("Bajo", "Mediano", "Alto"),
+                                  ordered = FALSE)
+
+# Ahora estableces "Mediano" como la categoría de referencia
+datos$ingreso_categoria <- relevel(datos$ingreso_categoria, ref = "Mediano")
+objetoreg<-glm(`el boricua` ~ seguridad + tipo_escuela + ingreso_categoria, 
+               data = datos, family = "binomial")
+summary(objetoreg)
+datos <- datos %>% 
+  mutate(vista_general = factor(vista_general,
+                                levels = c("Terrible", "Mal", "Regular", "Bien"),
+                                ordered = TRUE))
+datos$ingreso_categoria <- relevel(datos$ingreso_categoria, ref = "Bajo")
+
+library(MASS)
+modelo_ordinal <- polr(vista_general ~ plaza_mercado + ingreso_categoria, data = datos)
+summary(modelo_ordinal)
+exp(coef(modelo_ordinal))
+library(effects)
+plot(allEffects(modelo_ordinal))
+
+#si deseas ver el efecto de un predictor específico, por ejemplo, plaza_mercado:
+plot(Effect("plaza_mercado", modelo_ordinal))
