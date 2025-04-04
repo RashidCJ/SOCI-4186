@@ -140,7 +140,8 @@ tabla_calificaRP_negocio
 ji_calificaRP_negocio <- chisq.test(tabla_calificaRP_negocio)
 ji_calificaRP_negocio
 
-chisq.test(datos$tipo_escuela, datos$`el boricua`)
+table(datos$tipo_escuela, datos$`heladeria georgetti`)
+chisq.test(datos$tipo_escuela, datos$`heladeria georgetti`)
 # Prueba entre dummies creadas y respuestas
 # Por ejemplo, 'Estudiante universitario' y 'redujo_gastos'
 
@@ -176,7 +177,7 @@ view(dfSummary(datos))
 # Convertir tablas a data frames para stargazer
 df_tabla_sexo_gastos <- as.data.frame.matrix(tabla_sexo_gastos)
 df_tabla_edad_atractivo <- as.data.frame.matrix(tabla_edad_atractivo)
-
+df_tabla_sexo_gastos
 # Tabla de 'sexo' y 'redujo_gastos'
 stargazer(df_tabla_sexo_gastos, type = "latex", summary = FALSE,
           title = "Tabla de Contingencia: Sexo vs Reducción de Gastos",
