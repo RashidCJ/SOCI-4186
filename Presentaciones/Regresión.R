@@ -54,6 +54,9 @@ cor(dat$prestige,dat$income)
 mean(dat$prestige)
 sd(dat$prestige)
 
+library(GGally)
+#matriz de correlación
+ggpairs(dat,columns=2:6,ggplot2::aes(colour=type))
 #El modelo de regresión más sencillo: modelo de intercepto
 mod0 <- lm(formula = prestige ~ 1, data = dat)
 mod0
@@ -187,6 +190,8 @@ plot_ly(dat, x = ~education, y = ~ingreso_miles, z = ~prestige,
 summary(mod_ambos)
 anova(mod0,mod_ambos)
 library(car)
+
+Confint(mod_ambos)
 #veamos el hiperplano
 #scatter3d(prestige ~ education + ingreso_miles, data = dat, surface = TRUE)
 # Creamos una variable con los colores personalizados
@@ -301,3 +306,67 @@ modelsummary(model_list,
 
 export_summs(mod1,mod_ambos, mod_triple, scale = TRUE,
              error_format = "[{conf.low}, {conf.high}]")
+
+## Verificando supuestos del modelo
+
+dat$mod_ambos_resid<-resid(mod_ambos)
+hist(dat$mod_ambos_resid)
+qqPlot(dat$mod_ambos_resid, id = list(labels = dat$occ, n = 2))
+#subraya por defecto los dos valores más extremos con el # de fila
+# se puede alterar cantidad con argumento n=
+set.seed(42) # con esto obtendrán los mismo valores aleatorios en la 1ª corrida
+sesgáu <- exp(rnorm(50))
+hist(sesgáu)
+qqPlot(sesgáu)
+# otra simulación
+set.seed(5)
+súper_normal <- rnorm(2500, 1000, 200)
+hist(súper_normal)
+
+# Prueba de normalidad estadística (en dist)
+shapiro.test(súper_normal)
+shapiro.test(sesgáu)
+shapiro.test(dat$mod_ambos_resid)
+
+#chequeando homoscedasticidad
+dat$mod_ambos_pred <- predict(mod_ambos)
+ggplot(dat, aes(x = mod_ambos_pred, y = mod_ambos_resid)) +
+  geom_point() +
+  labs(x = "Predicción", y = "Residuo")
+residualPlots(mod_ambos)
+ncvTest(mod_ambos)
+ncvTest(mod_ambos, ~ingreso_miles)
+
+
+#Evaluando lo categórico
+
+dat |>
+  ggplot(aes(type, prestige, colour = type)) +
+  geom_jitter(height = 0,
+              width = .1,
+              show.legend = FALSE) +
+  ylim(0,100)
+
+dat |> 
+  filter(is.na(type))
+
+dat_medias <- dat |>
+  group_by(type) |>
+  summarise(media = mean(prestige),
+            Desv.Est.   = sd(prestige),
+            Err.Est.   = Desv.Est./sqrt(n()),
+            n    = n())
+dat_medias
+
+dat_medias |>
+  ggplot(aes(type, media)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = media - Err.Est.,
+                    ymax = media + Err.Est.))
+
+dat_sin_NAs <- dat |>
+  select(occ, prestige, type) |>
+  na.omit()
+mod_tipo <- lm(prestige ~ type, data = dat_sin_NAs)
+Anova(mod_tipo)
+summary(mod_tipo)
