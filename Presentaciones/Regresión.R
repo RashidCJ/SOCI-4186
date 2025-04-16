@@ -1,4 +1,4 @@
-tab <- matrix(c(2,2,2,2),2,2) #¿qué pasa al cambiar los valores?
+tab <- matrix(c(4,0,0,4),2,2) #¿qué pasa al cambiar los valores?
 rownames(tab)<-c("Leche servida antes","Leche servida después")
 colnames(tab)<-c("Adivinó «antes»","Adivinó «después»")
 tab
@@ -306,7 +306,8 @@ modelsummary(model_list,
 
 export_summs(mod1,mod_ambos, mod_triple, scale = TRUE,
              error_format = "[{conf.low}, {conf.high}]")
-
+#si quisiéreamos sacar las tablas de regresión a LaTeX:
+stargazer::stargazer(mod1,mod_ambos,mod_triple)
 ## Verificando supuestos del modelo
 
 dat$mod_ambos_resid<-resid(mod_ambos)
@@ -367,6 +368,16 @@ dat_medias |>
 dat_sin_NAs <- dat |>
   select(occ, prestige, type) |>
   na.omit()
-mod_tipo <- lm(prestige ~ type, data = dat_sin_NAs)
+mod_tipo <- lm(prestige ~ relevel(factor(type),"prof"), data = dat_sin_NAs)
+lm(prestige ~ relevel(factor(type), "prof"), data = dat_sin_NAs) %>%
+  summary()
 Anova(mod_tipo)
 summary(mod_tipo)
+stargazer::stargazer(mod_tipo, dep.var.labels = "Prestigio",
+                     dep.var.caption = "Variable dependiente",
+                     covariate.labels = c("Intercepto",
+                                          "Cuello blanco",
+                                          "Cuello azul"),
+                     ci=T,
+                     single.row = T,
+                     title = "Regresión con predictores categóricos")
