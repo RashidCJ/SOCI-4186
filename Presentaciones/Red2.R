@@ -215,7 +215,7 @@ aristas_y_total <- aristas_y_total %>%
 constante = 14.3438
 aristas_y_total <- aristas_y_total %>%
   mutate(amistad = friendship_raw + constante)
-
+aristas_y_total
 # 5. Generando la red: Jurados y televoto ----------------
 library(igraph)
 
@@ -339,7 +339,7 @@ comunidades_televoto <- cluster_infomap(g_red_televoto)
 comunidades_televoto
 # Información resumida de las comunidades detectadas
 summary(comunidades_jur) #salta error por falta de división
-
+## 5.b Estableciendo la división por Louvain ------------------
 comunidades_louvain_jur <- cluster_louvain(as_undirected(g_red))
 comunidades_louvain_jur
 comunidades_louvain_tele <- cluster_louvain(as_undirected(g_red_televoto))
@@ -374,7 +374,7 @@ num_comunidades_L <- length(unique(membership(comunidades_louvain_jur)))
 cat("Número de comunidades detectadas en cluster infomap:", num_comunidades, "\n")
 cat("Número de comunidades detectadas en algoritmo Louvain:", num_comunidades_L, "\n")
 
-
+# 6. Replicación de Dekker (parcial) en 2024 ---------------------
 #crear columna con noxmnbres en español de países
 library(countries)
 library(countrycode)
@@ -390,7 +390,7 @@ aristas_y_total<-aristas_y_total|>
 bloques_amistad_2005_2024<-bloques_amistad_2005_2024 |> 
   mutate(name = country_name(name, to="name_es"),
          name = ifelse(is.na(name), "Resto del Mundo", name)) 
-
+  
 #cambiar el NA formado por Rest of the World que no es un país, cambiar ese NA en from a 'Resto del Mundo'
 aristas_y_total<-aristas_y_total |> 
   mutate(from = ifelse(is.na(from), "Resto del Mundo", from)) |>
@@ -398,6 +398,8 @@ aristas_y_total<-aristas_y_total |>
 
 
 print(aristas_y_total,n=15)
+
+##  6.a Uso de tidygraph y ggraph ---------------- 
 library(tidygraph)
 library(ggraph)
 
@@ -406,6 +408,7 @@ library(ggraph)
 grafo_panas <- aristas_y_total |>
   filter(amistad > 0) |>
   as_tbl_graph(directed = TRUE)
+
 #generar centralidad para grafo y otras estadísticas útiles para gráficas y estadísticas
 grafo_panas <- grafo_panas %>%
   mutate(
@@ -434,7 +437,7 @@ ggraph(grafo_panas, layout = "fr") +
   geom_node_text(aes(label = name), repel = TRUE, size = 3) +
   theme_graph() +
   ggtitle("Red de amistades en Eurovisión (2024)")
-
+## 6.b Componentes fuertemente conexos ---------------- 
 components(grafo_panas, mode = "strong")
 grafo_tbl <- as_tbl_graph(grafo_panas) %>%
   mutate(componente = components(grafo_panas, mode = "strong")$membership)
@@ -452,9 +455,9 @@ ggraph(grafo_tbl, layout = "fr") +
   geom_edge_link(alpha = 0.3) +
   geom_node_point(aes(size = centralidad, color = bloque)) +
   geom_node_text(aes(label = name, color = bloque), repel = TRUE, size = 3)
-theme_void() +
+  theme_void() +
   ggtitle("Componentes identificados como conexos por Dekker")
-
+  
 # Gráfica por bloque (Dekker)
 p1 <- ggraph(grafo_tbl, layout = "fr") +
   geom_edge_link(alpha = 0.3) +
@@ -471,3 +474,33 @@ p2 <- ggraph(grafo_tbl, layout = "fr") +
   theme_void() +
   ggtitle("Componentes fuertemente conexos")
 grid.arrange(p1, p2, ncol = 2)
+
+# 7. Uso de ERGM en la red de amistad de 2024 ------------
+
+# Si tu grafo es tidygraph
+library(intergraph)
+grafo_panas2 <- aristas_y_total |>
+  graph_from_data_frame(directed = TRUE)
+net_ergm <- asNetwork(grafo_panas2)
+library(statnet)
+net_ergm
+list.vertex.attributes(net_ergm)
+# Convertimos a lógico (TRUE para miembros, FALSE para no)
+bloques_amistad_2005_2024 <- bloques_amistad_2005_2024 |>
+  mutate(miembro_OTAN_log = miembro_OTAN == "Sí")
+set.vertex.attribute(net_ergm, "miembro_OTAN", bloques_amistad_2005_2024$miembro_OTAN_log)
+set.vertex.attribute(net_ergm, "bloques", bloques_amistad_2005_2024$bloque)
+bloques_amistad_2005_2024$miembro_OTAN_log
+list.vertex.attributes(net_ergm)
+orden_nodos <- network.vertex.names(net_ergm)
+atrib_otan <- bloques_amistad_2005_2024$miembro_OTAN_log[match(orden_nodos, bloques_amistad_2005_2024$name)]
+set.vertex.attribute(net_ergm, "miembro_OTAN", atrib_otan)
+#maximum pseudo likelihood
+ergm2024<-ergm(net_ergm ~ edges + mutual + nodematch("miembro_OTAN")+ nodematch("bloques"))
+summary(ergm2024)
+
+mcmc.diagnostics(ergm2024)
+
+gof_result <- gof(ergm2024)
+plot(gof_result)
+
