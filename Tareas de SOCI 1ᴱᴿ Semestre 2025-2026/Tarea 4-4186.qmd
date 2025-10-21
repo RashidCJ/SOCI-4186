@@ -1,0 +1,184 @@
+---
+title: "Tarea semanal №4 — SOCI 4186-002"
+subtitle: "Técnicas de computación para la investigación social"
+author:
+  name: "Nombre y apellidos de estudiante"
+  affiliation: "Departamento de Sociología y Antropología -- UPR-RP"
+lang: es
+date: today
+editor: visual
+
+format:
+  html:
+    theme: litera          # (cámbialo por cosmo/flatly si prefieres)
+    toc: true
+    toc-title: "Contenido"
+    toc-depth: 3
+    number-sections: true
+    anchor-sections: true
+    smooth-scroll: true
+    df-print: paged
+    fig-cap-location: top
+    tbl-cap-location: top
+    code-fold: show
+    code-tools: true
+    code-link: true
+    link-external-newwindow: true
+    # search: true         # actívalo si quieres caja de búsqueda en la página
+
+execute:
+  echo: true
+  warning: false
+  message: false
+  error: false
+
+reference-location: section   # notas y refs al final de cada sección (tu preferencia)
+---
+
+Esta tarea debe entregarse para el viernes 31 de octubre de 2025 a las 23:59 vía Teams.
+
+## Instrucciones generales
+
+Esta tarea se hará en documento Quarto dentro de RStudio; será su introducción práctica a Quarto. Quarto permite entrelazar texto, código ejecutable y resultados en un documento final reproducible. Para aprender más sobre Quarto recomiendo las siguientes documentaciones:
+
+-   Documentación inicial <https://quarto.org>.
+
+-   Guía breve en R4DS (Quarto): <https://r4ds.hadley.nz/quarto.html>
+
+-   Formatos de salida (HTML, PDF, etc.): <https://r4ds.hadley.nz/quarto-formats.html>
+
+::: callout-note
+Sobre el YAML (bloque superior de configuración)
+
+Para esta primera entrega ya preconfiguré opciones que garantizan buena presentación en español (títulos, fecha, TOC, secciones numeradas, etc.). No cambien el YAML salvo el campo author.
+:::
+
+### Encabezados, texto y editores en Quarto
+
+En Quarto puedes redactar tanto en el editor visual (que se parece a un procesador de texto) como en el editor de código (donde ves directamente el Markdown y los bloques de código). Ambos producen el mismo resultado; puedes cambiar entre ellos con los botones en la parte superior de RStudio.
+
+#### Encabezados
+
+Los encabezados estructuran tu documento y aparecen en la tabla de contenido:
+
+``` markdown
+# Título principal - Encabezado nivel 1
+## Subtítulo - Encabezado nivel 2
+### Subsección - Encabezado nivel 3
+#### Subsubsección - Encabezado nivel 4
+```
+
+Noten que por ahora sólo estoy usando los encabezados de segundo a cuarto orden.
+
+El texto que pongas bajo estos encabezados se organizará automáticamente y quedará numerado si tu YAML incluye number-sections: true.
+
+Estilo de texto • Negrita: **así** en lugar de así
+
+• Cursiva: *así* en lugar de así
+
+Listas con guiones:
+
+-   primer punto
+
+-   segundo punto
+
+### Corriendo código
+
+Cuando presionas el botón **Render**, Quarto genera un documento que incluye tanto el contenido como la salida de los bloques de código. Por ejemplo:
+
+```{r, demonstrativo}
+1 + 1
+```
+
+También puedes añadir opciones al bloque de código:
+
+```{r, sin eco}
+#| echo: false
+2 * 2
+```
+
+La opción echo: false desactiva la impresión del código en el documento final (se muestra solo el resultado).
+
+::: callout-tip
+**Recuerda**: usa bloques de código cortos y bien comentados. En esta etapa inicial, lo importante es familiarizarse con la estructura y el flujo de trabajo, no con personalizar todas las opciones.
+:::
+
+## Tarea №4 - Capítulos 7 y 8
+
+::: callout-note
+Recuerden que si usan el libro de Irizarry, en español los capítulos siguen otra numeración y disposición interna.
+:::
+
+Los siguientes ejercicios son completables con lo cubierto entre los capítulos 7 y 8 del libro de Irizarry (en inglés).
+
+1.  En el conjunto de datos de `murders`, la región es una variable categórica con distribución
+
+```{r}
+#| echo: false
+library(dslabs)
+library(tidyverse)
+data(murders)
+murders|>
+  ggplot()+
+  geom_bar(aes(x=region,fill = region))
+```
+
+Redondeando al 5% más cercano, ¿qué proporción de los estados se encuentran en la región “North Central”?
+
+2.  ¿Cuál de los siguientes es cierto? (borren las opciones incorrectas, dejando solo el/los enunciado(s) verdadero(s))
+
+-   El gráfico anterior es un histograma.
+-   El gráfico anterior muestra solo cuatro números con un diagrama de barras.
+-   Las categorías no son números, por lo que no tiene sentido graficar la distribución.
+-   Los colores, no la altura de las barras, describen la distribución.
+
+3.  Podemos visualizar alturas con los datos de `heights` que hemos usado previamente
+
+```{r, creación de objeto o}
+library(ggplot2)
+
+o <- heights |>
+  ggplot(aes(x = height))
+```
+
+pero sabemos que esto todavía no se traduce en algo visual. Creen un bloque de código que añada un histograma al objeto `o` usando `geom_histogram()` con un ancho de barra (`binwidth`) de una unidad (1 pulgada).
+
+4.  Ahora alteraremos para permitir el uso de colores con el argumento `fill`, pero notarán que si corren el código como está inicialmente escrito habrá solapamiento, que querremos evitar con transparencias dentro de la geometría. Configuren una transparencia con el parámetro alpha dentro de la geometría a 0.2 para asegurar que se vean las distribuciones.
+
+```{r, creación de objeto coloreado}
+o <- heights |>
+  ggplot(aes(x = height, fill = sex)) +
+  geom_density()
+```
+
+5.  Ejercicio 8.15.1 (español) o 7.7.1 (en inglés)
+
+6.  Ejercicio 8.15.2 o 7.7.2
+
+7.  Ejercicio 8.15.3 o 7.7.3
+
+8.  Ejercicio 8.15.4 o 7.7.4
+
+9.  Ejercicio 8.15.5 o 7.7.5
+
+10. Ejercicio 8.15.7 o 7.7.7
+
+## Tarea №4 - Capítulos 9 y 10
+
+Los siguientes ejercicios son completables con lo cubierto entre los capítulos 9 y 10 del libro de Irizarry (en inglés).
+
+11. Ejercicio 10.13.1 o 9.15.1
+
+12. Ejercicio 10.13.2 o 9.15.2
+
+13. Tras leer el capítulo 9 (en español, 10 en inglés) y ver la evidencia presentada visualmente (y que pueden reproducir en R siguiendo los pasos y paquetes usados)... ¿ha empeorado la desigualdad de ingresos entre los países durante los últimos 40 años?
+
+## Tarea №4 - Declaraciones
+
+::: callout-note
+Recuerden que si deben cambiar lo enunciado abajo para ser académicamente honestos, háganlo.
+:::
+
+Declaro que soy la única persona que trabajó en solucionar esta tarea.
+
+Usé ChatGPT o3 para explicar errores en la función `ggplot()` en los ejercicios 1 y 4.
