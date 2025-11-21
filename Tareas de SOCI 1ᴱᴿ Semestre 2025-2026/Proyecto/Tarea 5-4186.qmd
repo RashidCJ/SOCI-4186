@@ -1,0 +1,320 @@
+---
+title: "Regresiones MCO y Logísticas"
+subtitle: "Tarea semanal №5"
+author: "Estudiante del curso SOCI 4186"
+date: today
+lang: es
+format: 
+  html:
+    self-contained: true # asegura se vea en otra computadora bien
+    theme: cerulean # tema visual, otras opciones: cosmo, flatly, lumen, paper, sandstone, united
+    toc: true # tabla de contenidos
+    toc-location: left #localización de tdc
+    number-sections: true #secciones numeradas
+    toc-expand: true
+    highlight-style: monokai #tema del código de R
+    code-fold: false #false es que el código por defecto se ve
+    code-tools: true #botón para copiar el código
+    page-layout: full # usa todo el ancho de página.
+editor: visual # para usar el editor visual en RStudio.
+---
+
+Esta tarea está dividida en dos temas cubiertos en pasadas semanas con datos que ya tienen o que están en las bases de datos preexistentes de paquetes que cargaré al inicio de la sesión y al inicio de los ejercicios en particular.
+
+Sigan instrucciones específicas para cada ejercicio.
+
+## Regresión de Mínimos Cuadrados Ordinarios
+
+La regresión de mínimos cuadrados ordinarios (MCO) es una técnica estadística utilizada para modelar la relación entre una variable dependiente continua y una o más variables independientes. El objetivo principal de la regresión MCO es encontrar la línea (o hiperplano en el caso de múltiples variables independientes) que minimiza la suma de los cuadrados de las diferencias entre los valores observados y los valores predichos por el modelo.
+
+Los datos en el ejercicio siguiente son los datos de un artículo en borrador sobre desigualdad en América Latina y el Caribe discutido en clase brevemente.
+
+```{r}
+#| label: Cargando datos y edición
+library(tidyverse)
+library(readxl)
+LatAm2014 <- read_excel("~/Desktop/Código en clase/LatAm2014.xlsx")
+names(LatAm2014)
+
+
+# vector con las variables efectivamente usadas en los modelos
+vars_usadas <- c(
+  "year", "country", "ginioriginal",
+  "gini100",          # la vamos a sobreescribir con ginioriginal*100
+  "socexpgdp", "educexpgdp",
+  "left",
+  "regionalwl", "segmwl",
+  "laboureduc", "logminwage", "employment", "White",
+  "Blacks", "Mulattoes", "Mestizo", "Amerindians", "Asians", "CreolesEtGafurinas",
+  "HeterogeneityIndex", "Fractionalization", "EthnicFractionalizationTS"
+)
+
+Latinoamérica <- LatAm2014 |> 
+  # primero redefinimos gini100 con la escala correcta
+  mutate(
+    gini100 = ginioriginal * 100,
+    # estas dos vienen como character en tu summary; las pasamos a numéricas
+    educexpgdp = readr::parse_number(educexpgdp),
+    employment = readr::parse_number(employment)
+  )|>
+  filter(year >=1993 & year <= 2014) |>
+  # luego nos quedamos solo con las variables usadas
+  select(all_of(vars_usadas)) 
+
+#generar the table de resumen
+library(vtable)
+#Generamos la tabla en objeto
+tab <- sumtable(
+  Latinoamérica,
+  out = "return",
+  title = "Tabla descriptiva",
+  digits=2
+)
+
+# Cambiar nombres de columnas directamente sobre `tab`
+colnames(tab) <- c(
+  "Variable",
+  "N válidos",
+  "Media",
+  "Desv. est.",
+  "Mínimo",
+  "Percentila 25",
+  "Percentila 75",
+  "Máximo"
+)
+
+
+knitr::kable(tab)
+```
+
+Tras reducir la cantidad de variables a 22 (incluyendo el nominal de `country`), y eliminar años más vacíos (1992 y 2015), tengo en general una matriz diseño de 418 observaciones divida en 19 países, de 1993 a 2014. Decido especificar un modelo, y les tocará a ustedes generar otro modelo.
+
+De manera descriptiva, estas son las variables:
+
+-   `year` es el año de la observación para algún país *p*,
+-   `ginioriginal` y `gini100` capturan el índice Gini de desigualdad para el país-año en particular. El primero es en escala 0-1, el segundo en escala 0-100.
+-   `socexpgdp` socexpgdp es el gasto social total como porcentaje del PIB (programas de protección social, transferencias, pensiones, etc.),
+-   `educexpgdp` es el gasto público en educación como porcentaje del PIB,
+-   `left` es una variable binaria que indica si el gobierno nacional en turno (presidencia o jefatura de gobierno) es de izquierda o centro-izquierda (1) o no (0), según la codificación estándar en la literatura de economía política comparada.
+-   `regionalwl` es una variable binaria que indica si el salario mínimo se define por regiones dentro del país (1) —por ejemplo, zonas A/B en México— en vez de ser un salario uniforme nacional (0).
+-   `segmwl` es una variable binaria que indica si el salario mínimo está segmentado por sector/ocupación (1), es decir, si existen mínimos diferenciados por ramas de actividad o tipo de trabajo, en lugar de un único piso general (0).
+-   `laboureduc` es el porcentaje de la fuerza laboral con educación terciaria (universitaria o equivalente). Captura el grado de segmentación del mercado de trabajo por nivel educativo.
+-   `logminwage` es el logaritmo natural del salario mínimo real mensual (deflactado y expresado en moneda comparable), lo que permite interpretar los coeficientes como cambios en Gini ante variaciones porcentuales del salario mínimo.
+-   `employment` es la tasa de empleo (empleo sobre población en edad de trabajar), que sirve como proxy inversa de informalidad en el mercado laboral.
+
+Las variables raciales están medidas como porcentaje de la población nacional que pertenece a cada grupo, según [Lizcano Fernández (2005)](https://www.scielo.org.mx/scielo.php?script=sci_arttext&pid=S1405-14352005000200185&lng=es&nrm=iso&tlng=es); cambian muy poco en el tiempo y en la práctica son casi invariantes.
+
+-   `White` es el porcentaje de población identificada como “blanca” o criolla. En los modelos con grupos raciales, su efecto se incorpora en el intercepto (grupo de referencia o contraste).
+-   `Mestizo` es el porcentaje de la población clasificada como mestiza (principalmente mezcla de población amerindia e ibérica/“blanca”).
+-   `Mulattoes` es el porcentaje de población mulata, mezcla de población africana y europea.
+-   `Amerindians` es el porcentaje de población indígena/amerindia.
+-   `Blacks` es el porcentaje de población negra (descendiente directa de población africana esclavizada).
+-   `Asians` es el porcentaje de población asiática (proveniente principalmente de migraciones de Medio Oriente y Asia-Pacífico en los siglos XIX y XX).
+-   `CreolesEtGafurinas` es el porcentaje de población clasificada como criolla no-blanca y/o garífuna (descendientes de comunidades afro-indígenas del Caribe centroamericano).
+
+Los índices de heterogeneidad o fraccionalización son los tres siguientes: - `HeterogeneityIndex` es un índice estático de heterogeneidad racial construido con las participaciones de los grupos de Lizcano Fernández usando el inverso del índice de Simpson (verdadera diversidad de orden 2). Representa el “número efectivo” de grupos raciales relevantes en cada país. - `Fractionalization` es un índice estático de fraccionalización étnica (1 − Σ pᵢ²), basado en Fearon (2003), que resume la probabilidad de que dos individuos escogidos al azar pertenezcan a grupos distintos. - `EthnicFractionalizationTS` es la versión histórica y variante en el tiempo del índice de fraccionalización étnica de Drazanova (2019), disponible anualmente. Es la medida que entra en los modelos de “fractionalization” y en los ejercicios de quiebre estructural.
+
+La variable dependiente es, y será incluso en su modelo, el índice de desigualdad Gini, `gini100`.
+
+1.  Interprete los coeficientes de la siguiente regresión.
+
+```{r, results='asis'}
+#| label: Modelo MCO a interpretar, ejercicio 1
+
+modelo1 <- lm(
+  gini100 ~ socexpgdp + educexpgdp + left + logminwage + employment + EthnicFractionalizationTS,
+  data = Latinoamérica
+)
+#summary(modelo1)
+library(stargazer)
+stargazer(
+  modelo1,
+  type             = "html",
+  title            = "Modelo 1. Determinantes de la desigualdad",
+  label            = "tab:modelo1",
+  dep.var.labels   = "Gini de ingreso (0–100)",
+  covariate.labels = c(
+    "Gasto social / PIB",
+    "Gasto educativo / PIB",
+    "Gobierno de izquierda",
+    "Log salario mínimo real",
+    "Tasa de empleo",
+    "Fraccionalización étnica (serie histórica)"
+  ),
+  digits           = 3,
+  no.space         = TRUE,
+  notes.append     = FALSE,
+  notes            = "Errores estándar entre paréntesis. * p<0.1; ** p<0.05; *** p<0.01"
+)
+```
+
+2.  ¿Qué variables resultan estadísticamente significativas al nivel del 5%?
+
+3.  Genere abajo su modelo `modelo2 <- lm(gini100 ~ ...+...+...)` con otras variables de las disponibles en el conjunto de datos `Latinoamérica`. Interprete los coeficientes y compare los resultados y estadísticas de R cuadrada y R cuadrada ajustada con el modelo1. Use el código arriba como base.
+
+4.  Use stargazer y ponga los dos modelos de interés en salida html como se hizo antes. Se recomienda eliminar el argumento `covariate.labels = c(...,...)` en salida para simplificar la salida.
+
+## Regresión logística binomial
+
+En clase trabajamos regresión lineal a propósito generando datos que eran hasta cierto punto errados con el afán de simplificar la intención de voto por Pinochet o en su contra en el referéndum de 1988 en Chile. Las siguientes tres preguntas están enlazadas
+
+```{r}
+#| label: Regresión logística binomial en clase
+
+# Cargamos los paquetes necesarios.
+library(carData)     # Contiene el dataset "Chile"
+
+# Cargamos el conjunto de datos.
+data("Chile")
+?Chile #si queremos ver anotaciones destos datos.
+ 
+# Observamos las primeras filas.
+head(Chile)
+
+# ----------------------------
+# 1. Crear una variable binaria
+# ----------------------------
+# La variable original "vote" tiene "Y" (Sí) y "N" (No), pero tiene otras opciones.
+# Para correr regresión logística necesitamos 0 y 1. sin embargo la fórmula abajo es inadecuada:
+
+Chile$voto_binario <- ifelse(Chile$vote == "Y", 1, 0)
+```
+
+1.  ¿Porqué podría no ser adecuado usar el colapso binario 1 sí 0 no con los datos usados?
+
+2.  Con las herramientas que han aprendido sobre tidyverse, eliminen las opciones que no pertenecen a las categorías del sí y no ANTES de generar `Chile$voto_binario`
+
+```{r}
+# ----------------------------
+# 1. Crear una variable binaria
+# ----------------------------
+# La variable original "vote" tiene "Y" (Sí) y "N" (No), pero tiene otras opciones.
+# Para correr regresión logística necesitamos 0 y 1. sin embargo la fórmula abajo es inadecuada:
+
+# Paso previo que deben situar aquí:
+#  - Quedarse SOLO con quienes contestaron Sí ("Y") o No ("N")
+#  - Luego crear voto_binario con 1 = Sí, 0 = No
+
+#Chile$voto_binario <- ...
+```
+
+3.  Genere el modelo logístico binomial `modelo_logit <- glm(voto_binario ~ ... + ... + ..., data = Chile, family = binomial)`, interprete los coeficientes asegurándose que son los OR y use stargazer para presentar los resultados en salida html. Recomiendo usen `exp(coef(m_logit)) # OR crudos` y `exp(confint(m_logit)) # IC 95% de los OR`
+
+## Regresión logística multinomial
+
+```{r}
+#| label: Regresión logística multinomial
+
+# ----------------------------------------
+# 1. Revisar las categorías originales
+# ----------------------------------------
+# La variable original "vote" tiene 4 categorías:
+# A = abstención
+# N = voto No (contra Pinochet)
+# U = indeciso
+# Y = voto Sí (a favor de Pinochet)
+table(Chile$vote)
+
+
+# ----------------------------------------
+# 2. Convertir a factor explícito con nombres claros y orden lógico
+# ----------------------------------------
+# Reordenamos los niveles para que aparezcan en el orden político deseado.
+# labels = nombres legibles para estudiantes.
+Chile$vote_multi <- factor(
+  Chile$vote,
+  levels = c("N", "Y", "A", "U"), 
+  labels = c("No", "Sí", "Abstención", "Indeciso")
+)
+
+colores_chile <- c(
+  "No" = "#CC0000",          # rojo oposición
+  "Sí" = "#0066CC",          # azul régimen
+  "Abstención" = "#999999",  # gris
+  "Indeciso" = "#FFCC00"     # amarillo
+)
+
+library(nnet)
+```
+
+Las variables disponibles en el conjunto de datos Chile incluyen, entre otras: - `region`: región de residencia (C, M, N, S, SA). - `population`: tamaño de población de la comunidad. - `sex`: sexo (F, M). - `age`: edad (años). - `education`: nivel educativo (P, PS, S). - `income`: ingreso mensual (Pesos). - `statusquo`: apoyo al status quo (escala continua). - `vote`: variable original del voto (N,Y,A,U) - `vote_multi`: intención de voto (No, Sí, Abstención, Indeciso).
+
+1.  Usando el mismo conjunto de datos `Chile` y la variable dependiente `vote_multi` creada arriba, elija una variable categórica distinta a `education` como predictor principal. Puede escoger, por ejemplo, `sex` o `region`.
+    a.  Ajuste modelo logit multinomial como abajo (pero en un chunk) donde \_\_\_ debe ser la variable categórica que usted elija (por ejemplo, sex o region). El código abajo es de ejemplo, y no es ejecutable en el ambiente donde se ubica. Deben hacer los cambios en nuevos chunks abajo:
+
+``` r
+m_multi_1 <- multinom(vote_multi ~ ___,   
+                      data = Chile ) 
+summary(m_multi_1)
+```
+
+```{r}
+#| label: Paso 1 - regresión logística multinomial categórica
+
+# Ajuste del modelo logit multinomial con su variable categórica
+```
+
+
+b.  Obtenga las probabilidades predichas para cada categoría de voto condicionadas a su variable categórica con `emmeans` tal cual usado en clase.
+
+``` r
+em_cat <- emmeans(m_multi_1,
+  ~ vote_multi | ___,   # aquí va su variable (por ejemplo, sex o region)
+  type = "response"
+)
+
+em_cat_df <- as.data.frame(em_cat)
+head(em_cat_df)
+```
+
+c.  Genere una gráfica apilada de la composición del voto predicho según esa variable categórica (análoga a la que hicimos por nivel educativo y status quo).
+
+``` r
+ggplot(em_cat_df, aes(x = ___, y = prob, fill = vote_multi)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_manual(values = colores_chile) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    x = "_____",
+    y = "Proporción predicha",
+    fill = "Voto",
+    title = "Distribución predicha del voto según _____"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+2.  Repita los tres pasos previos pero para las variables numéricas `age` o `income`.
+
+``` R
+#paso1
+m_multi_2 <- multinom(
+  vote_multi ~ ___,
+  data = Chile
+)
+summary(m_multi_2)
+
+em_cont <- emmeans(
+  m_multi_2,
+  ~ vote_multi | ___,
+  at = list(
+    ___ = seq(from = ___, to = ___, length.out = 6)  # defina un rango razonable
+  ),
+  type = "response"
+)
+#paso 2
+em_cont_df <- as.data.frame(em_cont)
+em_cont_df
+#paso 3
+ggplot(em_cont_df, aes(x = ___, y = prob, color = vote_multi)) +
+  geom_line(linewidth = 1.1) +
+  scale_color_manual(values = colores_chile) +
+  labs(
+    x = "_____",
+    y = "Probabilidad predicha",
+    color = "Voto",
+    title = "Probabilidades predichas del voto según _____"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+3.  Interprete las salidas: ¿cómo cambia la probabilidad de votar sí/no/abstención/indeciso según su variable categórica y según la variable numérica que escogió? ¿Identifica patrones informativos?
